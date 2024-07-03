@@ -1,0 +1,25 @@
+version: '3'
+services:
+  evodiffusionpython:
+    build: .  # Dockerfileが同じディレクトリにあると仮定
+    container_name: evodiffusionpython
+    volumes:
+      - ./:/workspace  # プロジェクトディレクトリをマウント
+      - /tmp/.X11-unix:/tmp/.X11-unix
+    working_dir: /workspace
+    command: bash -c "/bin/bash"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+    
+    ports:
+      - 8888:8888  # Jupyter Notebookを使う場合など、必要に応じてポートを公開
+
+    environment:
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - PYTHONPATH=/workspace
+    tty: true
