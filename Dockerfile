@@ -5,6 +5,7 @@ ENV DISPLAY :0
 ENV QT_X11_NO_MITSHM=1
 ENV PYTHONPATH=/workspace
 RUN ln -snf /usr/share/zoneinfo/Asia/Tokyo /etc/localtime && echo Asia/Tokyo > /etc/timezone
+ENV XDG_RUNTIME_DIR=/tmp/runtime-evodiffusion
 
 
 RUN apt-get update && apt-get install -y \
