@@ -18,6 +18,7 @@ class ImageDisplay(QWidget):
         self.evaluation_buttons = []
 
         button = QPushButton("select", self)
+        self.is_selected = False # 選択状態を保持するフラグ
         button.setCheckable(True)
         button.clicked.connect(lambda checked, button=button: self.on_evaluation_button_clicked(checked, button))
         self.evaluation_buttons.append(button)
@@ -39,6 +40,7 @@ class ImageDisplay(QWidget):
         self.image_label.setPixmap(pixmap)  
     
     def on_evaluation_button_clicked(self, checked, button):
+        self.is_selected = checked
         if checked:
             button.setText("Selected")
         else:
@@ -49,6 +51,3 @@ class ImageDisplay(QWidget):
             if btn != button:
                 btn.setChecked(False)
                 btn.setText("Select")
-
-
-
