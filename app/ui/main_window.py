@@ -110,7 +110,7 @@ class MainWindow(QMainWindow):
                 selected_image_ids.append(i)
         return selected_image_ids
     
-    def on_generate_button_clicked(self):
+    def on_generate_button_clicked(self): # TODO: RandomMutationによって生成された子潜在変数の枚数などの調査
         base_dir, current_step = self.on_prompt_button_clicked()
         prompt = self.prompt_input.text()
         selected_image_ids = self.get_selected_image_ids()
