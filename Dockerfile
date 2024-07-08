@@ -43,10 +43,10 @@ RUN pip install --upgrade pip && \
     conda update -n base -c defaults conda && \
     conda create -y -n ex_env python=3.10
 
-# ex_env環境をアクティベートするコマンドを.bashrcに追加
-RUN echo "source activate ex_env" >> ~/.bashrc
+# # ex_env環境をアクティベートするコマンドを.bashrcに追加
+# RUN echo "source activate ex_env" >> ~/.bashrc
 
-# SHELL ["conda", "run", "-n", "ex_env", "/bin/bash", "-c"]
+SHELL ["conda", "run", "-n", "ex_env", "/bin/bash", "-c"]
 
 RUN conda install -y pytorch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2 pytorch-cuda=12.1 -c pytorch -c nvidia && \
     pip install diffusers transformers accelerate --upgrade 
@@ -55,4 +55,5 @@ RUN pip install PyQt5
 
 WORKDIR /
 
-CMD ["/bin/bash"]
+CMD ["conda", "run", "-n", "ex_env", "/bin/bash"]
+
