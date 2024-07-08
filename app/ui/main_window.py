@@ -6,11 +6,16 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtCore import Qt
 from app.ui.components.image_display import ImageDisplay
+from app.models.diffusion import DiffusionModel
+from app.models.evolution import EvolutionModel
+import os
+import torch
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.diffusion_model = DiffusionModel()
         self.setWindowTitle("EvoDiffusionPython")
         self.setGeometry(100, 1000, 800, 600)
 
@@ -20,6 +25,15 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout()
         central_widget.setLayout(layout)
 
+        # テキスト入力領域
+        self.prompt_input = QLineEdit()
+        self.prompt_input.setPlaceholderText("Input prompt here")
+        layout.addWidget(self.prompt_input)
+
+        # テキスト決定ボタン
+        self.prompt_button = QPushButton("Set prompt")
+        layout.addWidget(self.prompt_button)
+        
         # 画像表示領域
         image_layout = QGridLayout()
         self.image_displays = []
@@ -50,20 +64,75 @@ class MainWindow(QMainWindow):
         self.text_output.setReadOnly(True)
         layout.addWidget(self.text_output)
 
-        # 初期画像を設定
-        images_path = ['app/data/test/0.png', 'app/data/test/1.png', 'app/data/test/2.png', 'app/data/test/3.png']
-        for i, image_display in enumerate(self.image_displays):
-            pixmap = QPixmap(images_path[i])
-            if pixmap.isNull():  # 画像の読み込みに失敗した場合
-                print(f"Failed to load image: {images_path[i]}")
-            else:
-                image_display.set_pixmap(pixmap)
+        # イベントハンドラの設定
+        self.prompt_button.clicked.connect(self.on_prompt_button_clicked)
+        self.buttons["Generate"].clicked.connect(self.on_generate_button_clicked)
 
+
+    # 画像パス取得メソッド
+    def get_image_paths(self):
+        image_paths = []
+        base_dir = self.diffusion_model.base_dir
+        current_step = self.diffusion_model.current_step
+        for i in range(4):
+            iamge_path = os.path.join(base_dir, f"step_{current_step-1}", f"image_{i}.png")
+            image_paths.append(iamge_path)
+        return image_paths
+    
      # 画像更新メソッド
-    def update_images(self, image_paths):
+    def update_images(self):
+        image_paths = self.get_image_paths()
         for i, path in enumerate(image_paths):
             pixmap = QPixmap(path)
             self.image_displays[i].set_pixmap(pixmap)
+
+    # 初期画像の生成
+    def generate_initial_images(self, prompt):
+        latents = [self.diffusion_model.generate_latent(i) for i in range(4)] # 4 枚の画像の潜在変数を生成
+        images = self.diffusion_model.generate_images(prompt, latents) # 画像生成
+        self.update_images()
+        base_dir = self.diffusion_model.base_dir
+        current_step = self.diffusion_model.current_step
+        self.text_output.append(f"Initial images generated in {base_dir}")
+        self.text_output.append(f"Current step: {current_step}")
+        return base_dir, current_step
+
+    # promptボタンがクリックされたときの処理
+    def on_prompt_button_clicked(self):
+        prompt = self.prompt_input.text()
+        base_dir, current_step = self.generate_initial_images(prompt)
+        return base_dir, current_step
+    
+    def get_selected_image_ids(self):
+        selected_image_ids = []
+        for i, image_display in enumerate(self.image_displays):
+            if image_display.is_selected:
+                selected_image_ids.append(i)
+        return selected_image_ids
+    
+    def on_generate_button_clicked(self):
+        base_dir, current_step = self.on_prompt_button_clicked()
+        prompt = self.prompt_input.text()
+        selected_image_ids = self.get_selected_image_ids()
+        if len(selected_image_ids) == 0:
+            # 画像が選択されていない場合エラーを表示（TODO: 今後ランダムな画像が再生成されるように修正）
+            self.text_output.append("Please select an image.")
+            return
+        elif len(selected_image_ids) > 0:
+            # 画像が選択されている場合、RandamMutation により新しい画像を生成
+            # 選択された画像の潜在変数をbase_dir/current_step から読み込み
+            selected_latents = []
+            for i in selected_image_ids:
+                latent_path = os.path.join(base_dir, f"step_{current_step - 1}", f"latent_{i}.pt")
+                selected_latents.append(torch.load(latent_path))
+            # 変異
+            evolution_model = EvolutionModel(selected_latents)
+            mutated_latents = evolution_model.random_mutation()
+            # ログの保存
+            self.diffusion_model.save_user_log(selected_image_ids)
+            # 画像生成
+            images, base_dir, current_step = self.diffusion_model.generate_images(prompt, mutated_latents)
+            self.update_images()
 
 if __name__ == "__main__":
 

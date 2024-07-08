@@ -5,11 +5,12 @@ from datetime import datetime
 from diffusers import AutoPipelineForText2Image
 from diffusers.utils.torch_utils import randn_tensor
 
-class  DiffusionModeI():
+class  DiffusionModel():
     def __init__(self):
         self.pipe = AutoPipelineForText2Image.from_pretrained("stabilityai/sdxl-turbo", torch_dtype=torch.float16, variant="fp16")  # モデルのロード
         self.pipe = self.pipe.to("cuda") # GPU に転送
         self.generator = torch.Generator(device="cuda") # 乱数生成器
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu") 
         self.latent_shape = (1, 4, 64, 64) # 潜在変数の形状
         self.base_dir = None # データ保存ディレクトリ
         self.current_step = 0 # 現在の進化計算のステップ
@@ -19,7 +20,7 @@ class  DiffusionModeI():
     def generate_latent(self, seed):
         if seed is not None:
             self.generator.manual_seed(seed)
-        return randn_tensor(self.shape, device="cuda", generator=self.generator)
+        return randn_tensor(self.latent_shape, device=self.device, generator=self.generator, dtype=torch.float16)
     
     # 画像生成関数
     def generate_images(self, prompt, latents):
@@ -42,9 +43,9 @@ class  DiffusionModeI():
             torch.save(latent, latent_path)
 
         self.current_step += 1
-        return images
+        return images, self.base_dir, self.current_step
 
-def save_user_log(self, selected_image_id):
+    def save_user_log(self, selected_image_id):
         self.user_logs.append({
             "step": self.current_step - 1,  # 直前のステップのログを記録
             "selected_image_id": selected_image_id

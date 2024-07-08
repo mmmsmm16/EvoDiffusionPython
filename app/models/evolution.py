@@ -19,7 +19,7 @@ class EvolutionModel():
         # ユーザが一枚の画像を選択した場合
         if num_selected == 1:
             z0 = self.selected_latents[0]
-            for i in range(i, self.population_size):
+            for i in range(i, self.population_size+1):
                 noise = randn_tensor(self.latent_shape, dtype=self.dtype, device=self.device) * (i / self.population_size) * self.mutation_rate 
                 new_z = z0 + noise
                 # 正規化
@@ -27,11 +27,11 @@ class EvolutionModel():
                 mutated_latents.append(new_z)
             # 変異強度の更新
             self.mutation_rate *= 0.7
-            
+
         # ユーザが複数の画像を選択した場合
         elif num_selected > 1:
             avg_z = torch.mean(torch.stack(self.selected_latents), dim=0)
-            for i in range(1, self.population_size):
+            for i in range(1, self.population_size+1):
                 noise = randn_tensor(self.latent_shape, dtype=self.dtype, device=self.device) * (i / self.population_size) * self.mutation_rate
                 new_z = avg_z + noise
                 # 正規化
