@@ -6,6 +6,7 @@ services:
     volumes:
       - ./:/workspace  # プロジェクトディレクトリをマウント
       - /tmp/.X11-unix:/tmp/.X11-unix
+      - ~/.ssh:/root/.ssh:ro
     working_dir: /workspace
     command: bash -c "/bin/bash"
     deploy:
