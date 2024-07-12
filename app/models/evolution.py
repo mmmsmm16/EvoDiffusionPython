@@ -19,7 +19,7 @@ class EvolutionModel():
         # ユーザが一枚の画像を選択した場合
         if num_selected == 1:
             z0 = self.selected_latents[0]
-            for i in range(i, self.population_size+1):
+            for i in range(1, self.population_size+1):
                 noise = randn_tensor(self.latent_shape, dtype=self.dtype, device=self.device) * (i / self.population_size) * self.mutation_rate 
                 new_z = z0 + noise
                 # 正規化
@@ -41,3 +41,19 @@ class EvolutionModel():
             raise ValueError("No images selected.")
 
         return mutated_latents
+
+    # LocalMutation #TODO: 今後実装
+    def local_mutation(self, target_pixel):   
+        """
+        指定範囲のピクセルを新しいランダムノイズで置き換える
+        
+        Parameters:
+        - target_pixel (tuple): 置き換えるピクセルの座標 (x_start, y_start, x_end, y_end)
+
+        Returns:
+        - mutated_latents (list): 変異後の潜在変数リスト
+        """
+
+        mutated_latents = []
+        x_start, y_start, x_end, y_end = target_pixel
+        

@@ -110,12 +110,12 @@ class MainWindow(QMainWindow):
                 selected_image_ids.append(i)
         return selected_image_ids
     
-    def on_generate_button_clicked(self): # TODO: RandomMutationによって生成された子潜在変数の枚数などの調査
-        base_dir, current_step = self.on_prompt_button_clicked()
+    def on_generate_button_clicked(self): 
+        base_dir, current_step = self.diffusion_model.base_dir, self.diffusion_model.current_step
         prompt = self.prompt_input.text()
         selected_image_ids = self.get_selected_image_ids()
         if len(selected_image_ids) == 0:
-            # 画像が選択されていない場合エラーを表示（TODO: 今後ランダムな画像が再生成されるように修正）
+            # 画像が選択されていない場合エラーを表示（#TODO: 今後ランダムな画像が再生成されるように修正）
             self.text_output.append("Please select an image.")
             return
         elif len(selected_image_ids) > 0:
