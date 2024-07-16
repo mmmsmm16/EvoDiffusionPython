@@ -43,6 +43,7 @@ class MainWindow(QMainWindow):
             image_display = ImageDisplay(button_position=button_position)
             self.image_displays.append(image_display)  # ImageDisplay インスタンスをリストに追加
             image_layout.addWidget(image_display, i // 2, i % 2)  # image_layout に追加
+            image_display.installEventFilter(image_display.crop_overlay)  # イベントフィルターを設定
         layout.addLayout(image_layout)
 
         # 操作ボタン
