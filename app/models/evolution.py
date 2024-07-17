@@ -9,7 +9,7 @@ class EvolutionModel:
     画像の進化プロセスをシミュレートする
     """
 
-    def __init__(self, selected_latents, target_pixels=None):
+    def __init__(self, selected_latents):
         """
         EvolutionModelの初期化
 
@@ -87,11 +87,9 @@ class EvolutionModel:
         """変異率の更新"""
         self.mutation_rate *= 0.7
 
-    def local_mutation(self):
+    def local_mutation(self, target_pixel):
         """
         指定範囲のピクセルを新しいランダムノイズで置き換える
-        
-        注: この機能は今後実装予定です。
 
         Args:
             target_pixel (tuple): 置き換えるピクセルの座標 (x_start, y_start, x_end, y_end)
@@ -99,6 +97,42 @@ class EvolutionModel:
         Returns:
             list: 変異後の潜在変数リスト
         """
-        # TODO: 今後実装
+        mutated_latents = []
+        x_start, y_start, x_end, y_end = target_pixel
+
+        for latent in self.selected_latents:
+            edited_latent = self._edit_latent(latent, target_pixel)
+            mutated_latents.append(edited_latent)
+
+        return mutated_latents
+
+    def _edit_latent(self, initial_latent, target_pixel):
+        """
+        指定されたピクセル範囲を新しいランダムノイズで置き換える関数
+
+        Args:
+            initial_latent (torch.Tensor): 編集する潜在変数
+            target_pixel (tuple): 編集対象のピクセル範囲を指定する(x_start, y_start, x_end, y_end)
+
+        Returns:
+            torch.Tensor: 編集された潜在変数
+        """
+        x_start, y_start, x_end, y_end = target_pixel
         
-        raise NotImplementedError("Local mutation is not implemented yet.")
+        # 潜在変数のサイズを取得
+        _, channels, height, width = initial_latent.shape
+        
+        # 編集対象のピクセル範囲を置き換え
+        edited_latent = initial_latent.clone()
+        
+        # 新しいランダムノイズを生成（すべてのチャネルに対して）
+        new_noise = randn_tensor((1, channels, y_end - y_start, x_end - x_start), 
+                                 dtype=self.dtype, device=self.device)
+        
+        # すべてのチャネルに対して新しいノイズを適用
+        edited_latent[:, :, y_start:y_end, x_start:x_end] = new_noise
+
+        # 編集された潜在変数を正規化
+        normalized_latent = self._normalize_latent(edited_latent)
+        
+        return normalized_latent
