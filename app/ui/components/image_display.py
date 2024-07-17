@@ -7,13 +7,16 @@ from app.ui.components.crop_overlay import CropOverlay
 class ImageDisplay(QWidget):
     """
     画像表示とクロッピング機能を提供するウィジェット
-
-    このクラスは、画像の表示、クロッピング操作、および評価ボタンの機能を統合する
+    
+    このクラスは、画像の表示、クロッピング操作、および評価ボタンの機能を統合
+    また、画像の選択状態を追跡
     """
 
     def __init__(self, parent=None, button_position="right"):
         super().__init__(parent)
         self.setStyleSheet("background-color: white;")
+        
+        self.is_selected = False  # 選択状態を追跡する属性
         
         self._setup_image_label()
         self._setup_crop_overlay()
@@ -40,11 +43,11 @@ class ImageDisplay(QWidget):
         self.evaluation_layout.setSpacing(10)
         self.evaluation_buttons = []
 
-        button = QPushButton("select", self)
-        button.setCheckable(True)
-        button.clicked.connect(self._on_evaluation_button_clicked)
-        self.evaluation_buttons.append(button)
-        self.evaluation_layout.addWidget(button)
+        self.select_button = QPushButton("Select", self)
+        self.select_button.setCheckable(True)
+        self.select_button.clicked.connect(self._on_evaluation_button_clicked)
+        self.evaluation_buttons.append(self.select_button)
+        self.evaluation_layout.addWidget(self.select_button)
 
     def _setup_crop_button(self):
         """クロップボタンを設定"""
@@ -79,12 +82,7 @@ class ImageDisplay(QWidget):
     def _on_evaluation_button_clicked(self, checked):
         """評価ボタンがクリックされたときの処理"""
         self.is_selected = checked
-        sender = self.sender()
-        sender.setText("Selected" if checked else "Select")
-        for btn in self.evaluation_buttons:
-            if btn != sender:
-                btn.setChecked(False)
-                btn.setText("Select")
+        self.select_button.setText("Selected" if checked else "Select")
 
     def get_selected_rect(self):
         """選択された矩形を取得"""
