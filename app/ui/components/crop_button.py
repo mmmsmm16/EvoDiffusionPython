@@ -3,16 +3,30 @@ from PyQt5.QtGui import QCursor
 from PyQt5.QtCore import Qt
 
 class CropButton(QPushButton):
-    def __init__(self, parent=None, image_display=None):  # image_display 引数を追加
+    """
+    クロッピング操作を開始/停止するためのボタン
+    
+    このボタンは、クリックされるとImageDisplayのクロッピング機能をトグルする役割を果たす
+    """
+
+    def __init__(self, parent=None, image_display=None):
         super().__init__("Crop", parent)
-        self.image_display = image_display  # ImageDisplay インスタンスを保持
+        self.image_display = image_display
         self.setCheckable(True)
         self.clicked.connect(self.on_clicked)
 
     def on_clicked(self, checked):
+        """
+        ボタンがクリックされたときの処理
+        
+        クロッピングモードを開始または停止し、ボタンのテキストを更新
+        
+        Args:
+            checked (bool): ボタンがチェックされた状態かどうか
+        """
         if checked:
             self.setText("Cropping")
-            self.image_display.start_cropping()  # ImageDisplay の start_cropping メソッドを呼び出す
+            self.image_display.start_cropping()
         else:
             self.setText("Crop")
             self.image_display.stop_cropping()
