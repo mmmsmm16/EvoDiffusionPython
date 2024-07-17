@@ -3,7 +3,7 @@ import os
 import torch
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QLineEdit, QProgressBar, QTextEdit, QGridLayout
+    QPushButton, QLineEdit, QProgressBar, QTextEdit, QGridLayout, QMessageBox
 )
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtCore import Qt
@@ -66,7 +66,9 @@ class MainWindow(QMainWindow):
         """操作ボタンの設定"""
         button_layout = QHBoxLayout()
         self.generate_button = QPushButton("Generate")
+        self.local_mutation_button = QPushButton("Apply Local Mutation")
         button_layout.addWidget(self.generate_button)
+        button_layout.addWidget(self.local_mutation_button)
         layout.addLayout(button_layout)
 
     def _setup_progress_bar(self, layout):
@@ -84,6 +86,7 @@ class MainWindow(QMainWindow):
         """シグナルとスロットの接続"""
         self.prompt_button.clicked.connect(self._on_prompt_button_clicked)
         self.generate_button.clicked.connect(self._on_generate_button_clicked)
+        self.local_mutation_button.clicked.connect(self._on_local_mutation_clicked)
 
     def _get_image_paths(self):
         """生成された画像のパスを取得"""
@@ -140,6 +143,42 @@ class MainWindow(QMainWindow):
         self.diffusion_model.save_user_log(selected_image_ids)
         self.diffusion_model.generate_images(prompt, mutated_latents)
         self._update_images()
+
+    def _on_local_mutation_clicked(self):
+        """ローカル変異ボタンがクリックされたときの処理"""
+        # クロップ領域を持つImageDisplayを見つける
+        cropped_displays = [display for display in self.image_displays if display.crop_overlay.get_selected_rect()]
+        
+        if not cropped_displays:
+            QMessageBox.warning(self, "Warning", "Please crop an area in at least one image before applying local mutation.")
+            return
+
+        # すべての潜在変数を取得
+        base_dir, current_step = self.diffusion_model.base_dir, self.diffusion_model.current_step
+        all_latents = [
+            torch.load(os.path.join(base_dir, f"step_{current_step - 1}", f"latent_{i}.pt"))
+            for i in range(len(self.image_displays))
+        ]
+
+        # EvolutionModelを初期化
+        evolution_model = EvolutionModel(all_latents)
+
+        # 各クロップされた画像に対してローカル変異を適用
+        mutated_latents = []
+        for i, display in enumerate(self.image_displays):
+            if display.crop_overlay.get_selected_rect():
+                crop_rect = display.crop_overlay.get_selected_rect()
+                mutated_latent = evolution_model.local_mutation(all_latents[i], crop_rect)
+                mutated_latents.append(mutated_latent)
+            else:
+                mutated_latents.append(all_latents[i])
+
+        # 変異した潜在変数を使用して新しい画像を生成
+        prompt = self.prompt_input.text()
+        self.diffusion_model.generate_images(prompt, mutated_latents)
+        self._update_images()
+
+        self.text_output.append("Local mutation applied to cropped areas.")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

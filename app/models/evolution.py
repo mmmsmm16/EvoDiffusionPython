@@ -9,14 +9,14 @@ class EvolutionModel:
     画像の進化プロセスをシミュレートする
     """
 
-    def __init__(self, selected_latents):
+    def __init__(self, latents):
         """
         EvolutionModelの初期化
 
         Args:
-            selected_latents (list): 選択された潜在変数のリスト
+            latents (list): 潜在変数のリスト
         """
-        self.selected_latents = selected_latents
+        self.latents = latents
         self._setup_device_and_dtype()
         self._initialize_parameters()
 
@@ -38,101 +38,62 @@ class EvolutionModel:
         Returns:
             list: 変異後の潜在変数のリスト
         """
-        num_selected = len(self.selected_latents)
-        
-        if num_selected == 0:
-            raise ValueError("No images selected.")
-        elif num_selected == 1:
-            return self._mutate_single_latent()
-        else:
-            return self._mutate_multiple_latents()
+        # 既存のランダム変異のコードをここに記述
+        # ...
 
-    def _mutate_single_latent(self):
-        """単一の潜在変数に対する変異"""
-        mutated_latents = []
-        z0 = self.selected_latents[0]
-        
-        for i in range(1, self.population_size + 1):
-            noise = self._generate_noise(i)
-            new_z = z0 + noise
-            normalized_z = self._normalize_latent(new_z)
-            mutated_latents.append(normalized_z)
-        
-        self._update_mutation_rate()
-        return mutated_latents
-
-    def _mutate_multiple_latents(self):
-        """複数の潜在変数に対する変異"""
-        mutated_latents = []
-        avg_z = torch.mean(torch.stack(self.selected_latents), dim=0)
-        
-        for i in range(1, self.population_size + 1):
-            noise = self._generate_noise(i)
-            new_z = avg_z + noise
-            normalized_z = self._normalize_latent(new_z)
-            mutated_latents.append(normalized_z)
-        
-        return mutated_latents
-
-    def _generate_noise(self, index):
-        """ノイズの生成"""
-        return randn_tensor(self.latent_shape, dtype=self.dtype, device=self.device) * (index / self.population_size) * self.mutation_rate
-
-    def _normalize_latent(self, latent):
-        """潜在変数の正規化"""
-        norm_factor = torch.sqrt(torch.tensor(float(torch.prod(torch.tensor(self.latent_shape)))))
-        return latent / torch.norm(latent) * norm_factor
-
-    def _update_mutation_rate(self):
-        """変異率の更新"""
-        self.mutation_rate *= 0.7
-
-    def local_mutation(self, target_pixel):
+    def local_mutation(self, crop_rect):
         """
-        指定範囲のピクセルを新しいランダムノイズで置き換える
+        クロップされた領域に対してローカルな変異を適用する
 
         Args:
-            target_pixel (tuple): 置き換えるピクセルの座標 (x_start, y_start, x_end, y_end)
+            crop_rect (tuple): クロップ領域の座標 (x, y, width, height)
 
         Returns:
-            list: 変異後の潜在変数リスト
+            list: 変異後の潜在変数のリスト
         """
         mutated_latents = []
-        x_start, y_start, x_end, y_end = target_pixel
+        x, y, width, height = crop_rect
 
-        for latent in self.selected_latents:
-            edited_latent = self._edit_latent(latent, target_pixel)
+        # 潜在空間の座標に変換
+        latent_x = int(x * self.latent_shape[3] / 512)
+        latent_y = int(y * self.latent_shape[2] / 512)
+        latent_width = max(1, int(width * self.latent_shape[3] / 512))
+        latent_height = max(1, int(height * self.latent_shape[2] / 512))
+
+        for latent in self.latents:
+            edited_latent = self._edit_latent(latent, (latent_x, latent_y, latent_width, latent_height))
             mutated_latents.append(edited_latent)
 
         return mutated_latents
 
-    def _edit_latent(self, initial_latent, target_pixel):
+    def _edit_latent(self, initial_latent, target_area):
         """
-        指定されたピクセル範囲を新しいランダムノイズで置き換える関数
+        指定された領域を新しいランダムノイズで置き換える関数
 
         Args:
             initial_latent (torch.Tensor): 編集する潜在変数
-            target_pixel (tuple): 編集対象のピクセル範囲を指定する(x_start, y_start, x_end, y_end)
+            target_area (tuple): 編集対象の領域を指定する(x, y, width, height)
 
         Returns:
             torch.Tensor: 編集された潜在変数
         """
-        x_start, y_start, x_end, y_end = target_pixel
+        x, y, width, height = target_area
         
-        # 潜在変数のサイズを取得
-        _, channels, height, width = initial_latent.shape
-        
-        # 編集対象のピクセル範囲を置き換え
         edited_latent = initial_latent.clone()
         
         # 新しいランダムノイズを生成（すべてのチャネルに対して）
-        new_noise = randn_tensor((1, channels, y_end - y_start, x_end - x_start), 
+        new_noise = randn_tensor((1, self.latent_shape[1], height, width), 
                                  dtype=self.dtype, device=self.device)
         
         # すべてのチャネルに対して新しいノイズを適用
-        edited_latent[:, :, y_start:y_end, x_start:x_end] = new_noise
+        edited_latent[:, :, y:y+height, x:x+width] = new_noise
 
         # 編集された潜在変数を正規化
         normalized_latent = self._normalize_latent(edited_latent)
         
         return normalized_latent
+
+    def _normalize_latent(self, latent):
+        """潜在変数の正規化"""
+        norm_factor = torch.sqrt(torch.tensor(float(torch.prod(torch.tensor(self.latent_shape)))))
+        return latent / torch.norm(latent) * norm_factor
