@@ -128,21 +128,31 @@ class MainWindow(QMainWindow):
         selected_image_ids = self._get_selected_image_ids()
 
         if not selected_image_ids:
-            self.text_output.append("Please select an image.")
+            self.text_output.append("Please select at least one image.")
             return
 
-        # 選択された画像の潜在変数を読み込み
-        selected_latents = [
-            torch.load(os.path.join(base_dir, f"step_{current_step - 1}", f"latent_{i}.pt"))
-            for i in selected_image_ids
-        ]
+        try:
+            # 選択された画像の潜在変数を読み込み
+            selected_latents = [
+                torch.load(os.path.join(base_dir, f"step_{current_step - 1}", f"latent_{i}.pt"))
+                for i in selected_image_ids
+            ]
 
-        # 変異と画像生成
-        evolution_model = EvolutionModel(selected_latents)
-        mutated_latents = evolution_model.random_mutation()
-        self.diffusion_model.save_user_log(selected_image_ids)
-        self.diffusion_model.generate_images(prompt, mutated_latents)
-        self._update_images()
+            # 変異と画像生成
+            evolution_model = EvolutionModel(selected_latents)
+            mutated_latents = evolution_model.random_mutation()
+
+            if mutated_latents is None or len(mutated_latents) == 0:
+                raise ValueError("No mutated latents generated.")
+
+            self.diffusion_model.save_user_log(selected_image_ids)
+            self.diffusion_model.generate_images(prompt, mutated_latents)
+            self._update_images()
+
+            self.text_output.append("New images generated successfully.")
+        except Exception as e:
+            self.text_output.append(f"Error during image generation: {str(e)}")
+            print(f"Error details: {e}")  # デバッグ用にコンソールにも出力
 
     def _on_local_mutation_clicked(self):
         """ローカル変異ボタンがクリックされたときの処理"""
@@ -166,8 +176,8 @@ class MainWindow(QMainWindow):
         # 各クロップされた画像に対してローカル変異を適用
         mutated_latents = []
         for i, display in enumerate(self.image_displays):
-            if display.crop_overlay.get_selected_rect():
-                crop_rect = display.crop_overlay.get_selected_rect()
+            crop_rect = display.crop_overlay.get_selected_rect()
+            if crop_rect:
                 mutated_latent = evolution_model.local_mutation(all_latents[i], crop_rect)
                 mutated_latents.append(mutated_latent)
             else:

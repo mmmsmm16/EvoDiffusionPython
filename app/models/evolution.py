@@ -38,21 +38,68 @@ class EvolutionModel:
         Returns:
             list: 変異後の潜在変数のリスト
         """
-        # 既存のランダム変異のコードをここに記述
-        # ...
+        num_selected = len(self.latents)
+        
+        if num_selected == 0:
+            raise ValueError("No latents available for mutation.")
+        elif num_selected == 1:
+            return self._mutate_single_latent()
+        else:
+            return self._mutate_multiple_latents()
+        
+    def _mutate_single_latent(self):
+        """単一の潜在変数に対する変異"""
+        mutated_latents = []
+        z0 = self.latents[0]
+        
+        for i in range(self.population_size):
+            noise = self._generate_noise(i)
+            new_z = z0 + noise
+            normalized_z = self._normalize_latent(new_z)
+            mutated_latents.append(normalized_z)
+        
+        self._update_mutation_rate()
+        return mutated_latents
+    
+    def _mutate_multiple_latents(self):
+        """複数の潜在変数に対する変異"""
+        mutated_latents = []
+        avg_z = torch.mean(torch.stack(self.latents), dim=0)
+        
+        for i in range(self.population_size):
+            noise = self._generate_noise(i)
+            new_z = avg_z + noise
+            normalized_z = self._normalize_latent(new_z)
+            mutated_latents.append(normalized_z)
+        
+        return mutated_latents
+    
+    def _generate_noise(self, index):
+        """ノイズの生成"""
+        return randn_tensor(self.latent_shape, dtype=self.dtype, device=self.device) * (index / self.population_size) * self.mutation_rate
 
-    def local_mutation(self, crop_rect):
+    def _normalize_latent(self, latent):
+        """潜在変数の正規化"""
+        norm_factor = torch.sqrt(torch.tensor(float(torch.prod(torch.tensor(self.latent_shape)))))
+        return latent / torch.norm(latent) * norm_factor
+
+    def _update_mutation_rate(self):
+        """変異率の更新"""
+        self.mutation_rate *= 0.7
+
+    def local_mutation(self, latent, crop_rect):
         """
-        クロップされた領域に対してローカルな変異を適用する
+        指定された潜在変数の特定の領域にローカルな変異を適用する
 
         Args:
-            crop_rect (tuple): クロップ領域の座標 (x, y, width, height)
+            latent (torch.Tensor): 変異を適用する潜在変数
+            crop_rect (QRect): クロップ領域
 
         Returns:
-            list: 変異後の潜在変数のリスト
+            torch.Tensor: 変異後の潜在変数
         """
-        mutated_latents = []
-        x, y, width, height = crop_rect
+        x, y = crop_rect.x(), crop_rect.y()
+        width, height = crop_rect.width(), crop_rect.height()
 
         # 潜在空間の座標に変換
         latent_x = int(x * self.latent_shape[3] / 512)
@@ -60,11 +107,7 @@ class EvolutionModel:
         latent_width = max(1, int(width * self.latent_shape[3] / 512))
         latent_height = max(1, int(height * self.latent_shape[2] / 512))
 
-        for latent in self.latents:
-            edited_latent = self._edit_latent(latent, (latent_x, latent_y, latent_width, latent_height))
-            mutated_latents.append(edited_latent)
-
-        return mutated_latents
+        return self._edit_latent(latent, (latent_x, latent_y, latent_width, latent_height))
 
     def _edit_latent(self, initial_latent, target_area):
         """
