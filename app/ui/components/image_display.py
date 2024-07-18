@@ -87,6 +87,18 @@ class ImageDisplay(QWidget):
     def get_selected_rect(self):
         """選択された矩形を取得"""
         return self.crop_overlay.get_selected_rect()
+    
+    def reset_selection(self):
+        """選択状態をリセットする"""
+        self.is_selected = False
+        self.select_button.setChecked(False)
+        self.select_button.setText("Select")
+
+    def reset_cropping(self):
+        """クロッピング状態をリセットする"""
+        self.crop_button.setChecked(False)
+        self.crop_button.setText("Crop")
+        self.crop_overlay.reset()
 
     def resizeEvent(self, event):
         """リサイズイベントの処理"""

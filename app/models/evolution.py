@@ -98,16 +98,20 @@ class EvolutionModel:
         Returns:
             torch.Tensor: 変異後の潜在変数
         """
-        x, y = crop_rect.x(), crop_rect.y()
-        width, height = crop_rect.width(), crop_rect.height()
+        x_start, y_start = crop_rect.topLeft().x(), crop_rect.topLeft().y()
+        x_end, y_end = crop_rect.bottomRight().x(), crop_rect.bottomRight().y()
 
         # 潜在空間の座標に変換
-        latent_x = int(x * self.latent_shape[3] / 512)
-        latent_y = int(y * self.latent_shape[2] / 512)
-        latent_width = max(1, int(width * self.latent_shape[3] / 512))
-        latent_height = max(1, int(height * self.latent_shape[2] / 512))
+        latent_x_start = max(0, int(x_start * self.latent_shape[3] / 512))
+        latent_y_start = max(0, int(y_start * self.latent_shape[2] / 512))
+        latent_x_end = min(self.latent_shape[3], int(x_end * self.latent_shape[3] / 512))
+        latent_y_end = min(self.latent_shape[2], int(y_end * self.latent_shape[2] / 512))
 
-        return self._edit_latent(latent, (latent_x, latent_y, latent_width, latent_height))
+        print(f"Crop rect: {crop_rect}")
+        print(f"Latent coordinates: ({latent_x_start}, {latent_y_start}) to ({latent_x_end}, {latent_y_end})")
+        print(f"Latent shape: {latent.shape}")
+
+        return self._edit_latent(latent, (latent_x_start, latent_y_start, latent_x_end, latent_y_end))
 
     def _edit_latent(self, initial_latent, target_area):
         """
@@ -115,27 +119,38 @@ class EvolutionModel:
 
         Args:
             initial_latent (torch.Tensor): 編集する潜在変数
-            target_area (tuple): 編集対象の領域を指定する(x, y, width, height)
+            target_area (tuple): 編集対象の領域を指定する(x_start, y_start, x_end, y_end)
 
         Returns:
             torch.Tensor: 編集された潜在変数
         """
-        x, y, width, height = target_area
+        x_start, y_start, x_end, y_end = target_area
         
         edited_latent = initial_latent.clone()
         
         # 新しいランダムノイズを生成（すべてのチャネルに対して）
+        height = y_end - y_start
+        width = x_end - x_start
         new_noise = randn_tensor((1, self.latent_shape[1], height, width), 
                                  dtype=self.dtype, device=self.device)
         
+        print(f"Target area: {target_area}")
+        print(f"New noise shape: {new_noise.shape}")
+        print(f"Edited latent shape: {edited_latent.shape}")
+
+        # サイズチェックと調整
+        if new_noise.shape[2:] != edited_latent[:, :, y_start:y_end, x_start:x_end].shape[2:]:
+            print("Size mismatch detected. Adjusting new_noise size.")
+            new_noise = new_noise[:, :, :y_end-y_start, :x_end-x_start]
+            print(f"Adjusted new noise shape: {new_noise.shape}")
+
         # すべてのチャネルに対して新しいノイズを適用
-        edited_latent[:, :, y:y+height, x:x+width] = new_noise
+        edited_latent[:, :, y_start:y_end, x_start:x_end] = new_noise
 
         # 編集された潜在変数を正規化
         normalized_latent = self._normalize_latent(edited_latent)
         
         return normalized_latent
-
     def _normalize_latent(self, latent):
         """潜在変数の正規化"""
         norm_factor = torch.sqrt(torch.tensor(float(torch.prod(torch.tensor(self.latent_shape)))))

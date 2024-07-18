@@ -121,6 +121,12 @@ class MainWindow(QMainWindow):
         """選択された画像のIDを取得"""
         return [i for i, display in enumerate(self.image_displays) if display.is_selected]
 
+    def _reset_selections(self):
+            """選択状態とクロッピング状態をリセットする"""
+            for display in self.image_displays:
+                display.reset_selection()
+                display.reset_cropping()
+
     def _on_generate_button_clicked(self):
         """生成ボタンがクリックされたときの処理"""
         base_dir, current_step = self.diffusion_model.base_dir, self.diffusion_model.current_step
@@ -145,10 +151,13 @@ class MainWindow(QMainWindow):
             if mutated_latents is None or len(mutated_latents) == 0:
                 raise ValueError("No mutated latents generated.")
 
-            self.diffusion_model.save_user_log(selected_image_ids)
+            # ユーザーログを保存
+            self.diffusion_model.save_user_log(selected_image_ids, mutation_type='random')
+
             self.diffusion_model.generate_images(prompt, mutated_latents)
             self._update_images()
 
+            self._reset_selections()
             self.text_output.append("New images generated successfully.")
         except Exception as e:
             self.text_output.append(f"Error during image generation: {str(e)}")
@@ -156,38 +165,45 @@ class MainWindow(QMainWindow):
 
     def _on_local_mutation_clicked(self):
         """ローカル変異ボタンがクリックされたときの処理"""
-        # クロップ領域を持つImageDisplayを見つける
         cropped_displays = [display for display in self.image_displays if display.crop_overlay.get_selected_rect()]
         
         if not cropped_displays:
             QMessageBox.warning(self, "Warning", "Please crop an area in at least one image before applying local mutation.")
             return
 
-        # すべての潜在変数を取得
         base_dir, current_step = self.diffusion_model.base_dir, self.diffusion_model.current_step
         all_latents = [
             torch.load(os.path.join(base_dir, f"step_{current_step - 1}", f"latent_{i}.pt"))
             for i in range(len(self.image_displays))
         ]
 
-        # EvolutionModelを初期化
         evolution_model = EvolutionModel(all_latents)
 
-        # 各クロップされた画像に対してローカル変異を適用
         mutated_latents = []
         for i, display in enumerate(self.image_displays):
             crop_rect = display.crop_overlay.get_selected_rect()
             if crop_rect:
+                print(f"Applying local mutation to image {i}")
+                print(f"Crop rect: {crop_rect}")
                 mutated_latent = evolution_model.local_mutation(all_latents[i], crop_rect)
                 mutated_latents.append(mutated_latent)
+
+                # ユーザーログを保存
+                crop_rect_dict = {
+                    "x_start": crop_rect.topLeft().x(),
+                    "y_start": crop_rect.topLeft().y(),
+                    "x_end": crop_rect.bottomRight().x(),
+                    "y_end": crop_rect.bottomRight().y()
+                }
+                self.diffusion_model.save_user_log(i, mutation_type='local', crop_rect=crop_rect_dict)
             else:
                 mutated_latents.append(all_latents[i])
 
-        # 変異した潜在変数を使用して新しい画像を生成
         prompt = self.prompt_input.text()
         self.diffusion_model.generate_images(prompt, mutated_latents)
         self._update_images()
 
+        self._reset_selections()
         self.text_output.append("Local mutation applied to cropped areas.")
 
 if __name__ == "__main__":

@@ -105,17 +105,25 @@ class DiffusionModel:
         image.save(image_path)
         torch.save(latent, latent_path)
 
-    def save_user_log(self, selected_image_id):
+    def save_user_log(self, selected_image_id, mutation_type, crop_rect=None):
         """
-        ユーザーの操作ログを保存する。
+        ユーザーの操作ログを保存する
 
         Args:
-            selected_image_id (int): ユーザーが選択した画像のID
+            selected_image_id (int or list): ユーザーが選択した画像のID（複数可）
+            mutation_type (str): 変異のタイプ（'random' または 'local'）
+            crop_rect (dict, optional): 局所変異の場合のクロップ領域
         """
-        self.user_logs.append({
-            "step": self.current_step - 1,
-            "selected_image_id": selected_image_id
-        })
+        log_entry = {
+            "step": self.current_step - 1,  # 直前のステップのログを記録
+            "selected_image_id": selected_image_id,
+            "mutation_type": mutation_type
+        }
+
+        if mutation_type == 'local' and crop_rect is not None:
+            log_entry["crop_rect"] = crop_rect
+
+        self.user_logs.append(log_entry)
         self._write_user_log_to_file()
 
     def _write_user_log_to_file(self):

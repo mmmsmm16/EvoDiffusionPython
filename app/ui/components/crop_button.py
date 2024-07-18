@@ -26,7 +26,9 @@ class CropButton(QPushButton):
         """
         if checked:
             self.setText("Cropping")
-            self.image_display.start_cropping()
+            self.image_display.crop_overlay.start_cropping()
         else:
             self.setText("Crop")
-            self.image_display.stop_cropping()
+            self.image_display.crop_overlay.stop_cropping()
+            if not self.image_display.crop_overlay.selected_rect:
+                self.image_display.crop_overlay.reset()

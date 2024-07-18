@@ -15,6 +15,7 @@ class CropOverlay(QWidget):
         self.setMouseTracking(True)
         self.rubber_band = QRubberBand(QRubberBand.Rectangle, self)
         self.origin = QPoint()
+        self.origin = None
         self.is_cropping = False
         self.selected_rect = None
         self.setStyleSheet("background-color: rgba(255, 255, 255, 50);")
@@ -37,35 +38,43 @@ class CropOverlay(QWidget):
 
     def mousePressEvent(self, event):
         """マウスボタンが押されたときの処理"""
-        if self.is_cropping and event.button() == Qt.LeftButton:
+        if self.is_cropping:
+            # 既に選択候補がある場合はリセット
+            if self.selected_rect or self.rubber_band.isVisible():
+                self.reset()
+                self.update()  # ウィジェットを再描画して、リセットを視覚的に反映
+
+            # 新しい選択を開始
             self.origin = event.pos()
             self.rubber_band.setGeometry(QRect(self.origin, QSize()))
             self.rubber_band.show()
 
     def mouseMoveEvent(self, event):
         """マウスが移動したときの処理"""
-        if self.is_cropping and not self.origin.isNull():
+        if self.is_cropping and self.origin:
             self.rubber_band.setGeometry(QRect(self.origin, event.pos()).normalized())
 
     def mouseReleaseEvent(self, event):
         """マウスボタンが離されたときの処理"""
-        if self.is_cropping and event.button() == Qt.LeftButton:
-            self.rubber_band.hide()
+        if self.is_cropping:
             self.selected_rect = self.rubber_band.geometry()
-            self.stop_cropping()
+            self.rubber_band.hide()
+            self.update()  # 選択された矩形を描画するためにウィジェットを更新
 
     def paintEvent(self, event):
         """ウィジェットの描画処理"""
         super().paintEvent(event)
-        painter = QPainter(self)
-        pen = QPen(QColor(255, 0, 0), 2, Qt.SolidLine)
-        painter.setPen(pen)
-        
-        if self.rubber_band.isVisible():
-            painter.drawRect(self.rubber_band.geometry())
-        elif self.selected_rect:
+        if self.selected_rect:
+            painter = QPainter(self)
+            painter.setPen(QColor(255, 0, 0))
             painter.drawRect(self.selected_rect)
 
+    def reset(self):
+        """クロッピング状態をリセットする"""
+        self.rubber_band.hide()
+        self.selected_rect = None
+        self.origin = None
+    
     def get_selected_rect(self):
         """選択された矩形を取得"""
         return self.selected_rect
