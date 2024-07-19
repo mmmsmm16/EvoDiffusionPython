@@ -19,7 +19,6 @@ EvoDiffusionPythonは、進化的アルゴリズムと拡散モデルを組み�
 └── app
     ├── main.py
     ├── data
-    │   └── test
     ├── models
     │   ├── diffusion.py
     │   └── evolution.py
