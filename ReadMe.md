@@ -46,7 +46,10 @@ EvoDiffusionPythonは、進化的アルゴリズムと拡散モデルを組み�
    docker-compose up --build
    ```
 
-3. アプリケーションが起動し、指定されたポートでアクセス可能になる
+3. アプリケーションの実行
+   ```
+   python app/main.py
+   ```
 
 ## 使用方法
 
